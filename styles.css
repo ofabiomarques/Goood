@@ -5,6 +5,13 @@
   font-weight: 600;
 }
 
+@font-face {
+  font-family: "AwesomeSerif-SemiBoldTall";
+  src: url("./assets/fonts/AwesomeSerif-SemiBoldTall.otf") format("opentype");
+  font-style: normal;
+  font-weight: 600;
+}
+
 :root {
   --bg: #f8f9f4;
   --text: #12150f;
@@ -194,9 +201,13 @@ button {
 .about-modal {
   position: fixed;
   inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 20;
   background: var(--modal-bg);
   color: var(--modal-text);
+  padding: clamp(5.5rem, 10vh, 7rem) clamp(1.5rem, 3vw, 2.75rem) clamp(2rem, 5vh, 3rem);
 }
 
 .about-modal-close {
@@ -236,8 +247,7 @@ button {
   align-items: flex-start;
   gap: clamp(2.25rem, 3vw, 3rem);
   width: min(100%, 47rem);
-  margin: 0 auto;
-  padding-top: clamp(11rem, 27.4vh, 17.125rem);
+  margin: 0;
 }
 
 .about-modal-heading {
@@ -248,7 +258,7 @@ button {
 
 .about-modal-heading h2 {
   margin: 0;
-  font-family: "Awesome Serif Semi Bold Tall", Georgia, serif;
+  font-family: "AwesomeSerif-SemiBoldTall", "Awesome Serif Semi Bold Tall", Georgia, serif;
   font-size: 3rem;
   font-style: normal;
   font-weight: 600;
@@ -320,7 +330,7 @@ button {
     width: 100%;
     flex-direction: column;
     gap: 1.5rem;
-    padding: 6.5rem 1.5rem 2rem;
+    padding: 0;
   }
 
   .about-modal-heading,
