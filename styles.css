@@ -274,7 +274,7 @@ button {
 @media (max-width: 720px) {
   .page-shell {
     height: 100svh;
-    padding-top: 1.25rem;
+    padding-top: calc(3.5rem + env(safe-area-inset-top, 0px));
   }
 
   .topbar {
