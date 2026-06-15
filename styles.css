@@ -145,6 +145,7 @@ button {
 }
 
 .hero-art {
+  position: relative;
   display: flex;
   flex: 1;
   justify-content: center;
@@ -161,6 +162,22 @@ button {
   max-height: 42vh;
   object-fit: contain;
   mix-blend-mode: multiply;
+}
+
+.hero-video-canvas {
+  display: none;
+  width: 100%;
+  max-width: min(44.95rem, 62vh);
+  height: auto;
+  max-height: 42vh;
+}
+
+.hero-art.is-keyed .hero-video {
+  display: none;
+}
+
+.hero-art.is-keyed .hero-video-canvas {
+  display: block;
 }
 
 .hero-copy {
@@ -309,6 +326,11 @@ button {
   }
 
   .hero-video {
+    max-width: min(100%, 22rem);
+    max-height: 32vh;
+  }
+
+  .hero-video-canvas {
     max-width: min(100%, 22rem);
     max-height: 32vh;
   }
