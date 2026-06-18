@@ -6,16 +6,18 @@ const heroStackVideo = document.querySelector("[data-hero-stack-video]");
 const heroStackCanvas = document.querySelector("[data-hero-stack-canvas]");
 const heroFallbackImage = document.querySelector("[data-hero-fallback]");
 
-const isApplePlatform = () => {
+const shouldUseAppleVideoWorkaround = () => {
   const userAgent = navigator.userAgent;
   const isAppleMobile = /iPad|iPhone|iPod/.test(userAgent)
     || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const isAppleDesktop = /Mac/.test(navigator.platform);
+  const isApplePlatform = isAppleMobile || isAppleDesktop;
+  const isSafari = /Safari/i.test(userAgent) && !/Chrome|Chromium|CriOS|Edg|EdgiOS|Firefox|FxiOS/i.test(userAgent);
 
-  return isAppleMobile || isAppleDesktop;
+  return isApplePlatform && isSafari;
 };
 
-if (heroArt && heroFallbackImage && isApplePlatform()) {
+if (heroArt && heroFallbackImage && shouldUseAppleVideoWorkaround()) {
   const showStaticFallback = () => {
     heroArt.classList.remove("is-masked");
     heroArt.classList.add("is-static");
@@ -30,22 +32,91 @@ if (heroArt && heroFallbackImage && isApplePlatform()) {
 
   if (heroStackVideo && heroStackCanvas) {
     const ctx = heroStackCanvas.getContext("2d", { willReadFrequently: true });
-    const frameBuffer = document.createElement("canvas");
-    const frameBufferCtx = frameBuffer.getContext("2d", { willReadFrequently: true });
+    const colorBuffer = document.createElement("canvas");
+    const maskBuffer = document.createElement("canvas");
+    const probeBuffer = document.createElement("canvas");
+    const colorBufferCtx = colorBuffer.getContext("2d", { willReadFrequently: true });
+    const maskBufferCtx = maskBuffer.getContext("2d", { willReadFrequently: true });
+    const probeBufferCtx = probeBuffer.getContext("2d", { willReadFrequently: true });
 
-    if (ctx && frameBufferCtx) {
+    if (ctx && colorBufferCtx && maskBufferCtx && probeBufferCtx) {
       let stackReady = false;
       let hasMaskedPlayback = false;
       let frameId = 0;
+      let maskBounds = null;
+
+      const updateMaskBounds = () => {
+        const sourceWidth = heroStackVideo.videoWidth || 0;
+        const sourceHeight = heroStackVideo.videoHeight || 0;
+
+        if (!sourceWidth || !sourceHeight) {
+          return;
+        }
+
+        const halfWidth = Math.floor(sourceWidth / 2);
+        probeBuffer.width = sourceWidth;
+        probeBuffer.height = sourceHeight;
+        probeBufferCtx.drawImage(heroStackVideo, 0, 0, sourceWidth, sourceHeight);
+
+        const maskFrame = probeBufferCtx.getImageData(halfWidth, 0, halfWidth, sourceHeight);
+        const maskData = maskFrame.data;
+        let minX = halfWidth;
+        let minY = sourceHeight;
+        let maxX = -1;
+        let maxY = -1;
+
+        for (let y = 0; y < sourceHeight; y += 1) {
+          for (let x = 0; x < halfWidth; x += 1) {
+            const index = (y * halfWidth + x) * 4;
+            const alpha = (maskData[index] + maskData[index + 1] + maskData[index + 2]) / 3;
+
+            if (alpha > 8) {
+              if (x < minX) minX = x;
+              if (y < minY) minY = y;
+              if (x > maxX) maxX = x;
+              if (y > maxY) maxY = y;
+            }
+          }
+        }
+
+        if (maxX >= minX && maxY >= minY) {
+          const paddingX = Math.round((maxX - minX + 1) * 0.24);
+          const paddingY = Math.round((maxY - minY + 1) * 0.18);
+          const cropX = Math.max(0, minX - paddingX);
+          const cropY = Math.max(0, minY - paddingY);
+          const cropWidth = Math.min(halfWidth - cropX, maxX - minX + 1 + (paddingX * 2));
+          const cropHeight = Math.min(sourceHeight - cropY, maxY - minY + 1 + (paddingY * 2));
+
+          maskBounds = {
+            x: cropX,
+            y: cropY,
+            width: cropWidth,
+            height: cropHeight,
+          };
+        } else {
+          maskBounds = {
+            x: 0,
+            y: 0,
+            width: halfWidth,
+            height: sourceHeight,
+          };
+        }
+      };
 
       const resizeCanvas = () => {
         const sourceWidth = heroStackVideo.videoWidth || 1;
         const sourceHeight = heroStackVideo.videoHeight || 1;
         const visibleWidth = sourceWidth / 2;
-        const aspectRatio = visibleWidth / sourceHeight;
+        const aspectRatio = maskBounds
+          ? maskBounds.width / maskBounds.height
+          : visibleWidth / sourceHeight;
+        const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
         const containerWidth = heroArt.getBoundingClientRect().width || 1;
+        const maxWidth = window.innerWidth <= 720
+          ? Math.min(containerWidth, 22 * rootFontSize)
+          : Math.min(containerWidth, 44.95 * rootFontSize, window.innerHeight * 0.62);
         const maxHeight = window.innerWidth <= 720 ? window.innerHeight * 0.32 : window.innerHeight * 0.42;
-        let displayWidth = containerWidth;
+        let displayWidth = maxWidth;
         let displayHeight = displayWidth / aspectRatio;
 
         if (displayHeight > maxHeight) {
@@ -60,8 +131,10 @@ if (heroArt && heroFallbackImage && isApplePlatform()) {
         if (heroStackCanvas.width !== width || heroStackCanvas.height !== height) {
           heroStackCanvas.width = width;
           heroStackCanvas.height = height;
-          frameBuffer.width = width * 2;
-          frameBuffer.height = height;
+          colorBuffer.width = width;
+          colorBuffer.height = height;
+          maskBuffer.width = width;
+          maskBuffer.height = height;
         }
 
         heroStackCanvas.style.width = `${displayWidth}px`;
@@ -74,12 +147,47 @@ if (heroArt && heroFallbackImage && isApplePlatform()) {
         }
 
         if (!heroStackVideo.paused) {
-          frameBufferCtx.drawImage(heroStackVideo, 0, 0, frameBuffer.width, frameBuffer.height);
-
           const width = heroStackCanvas.width;
           const height = heroStackCanvas.height;
-          const colorFrame = frameBufferCtx.getImageData(0, 0, width, height);
-          const maskFrame = frameBufferCtx.getImageData(width, 0, width, height);
+          const sourceWidth = heroStackVideo.videoWidth || 2;
+          const sourceHeight = heroStackVideo.videoHeight || 1;
+          const halfWidth = Math.floor(sourceWidth / 2);
+          const bounds = maskBounds || {
+            x: 0,
+            y: 0,
+            width: halfWidth,
+            height: sourceHeight,
+          };
+
+          colorBufferCtx.clearRect(0, 0, width, height);
+          maskBufferCtx.clearRect(0, 0, width, height);
+
+          colorBufferCtx.drawImage(
+            heroStackVideo,
+            bounds.x,
+            bounds.y,
+            bounds.width,
+            bounds.height,
+            0,
+            0,
+            width,
+            height,
+          );
+
+          maskBufferCtx.drawImage(
+            heroStackVideo,
+            halfWidth + bounds.x,
+            bounds.y,
+            bounds.width,
+            bounds.height,
+            0,
+            0,
+            width,
+            height,
+          );
+
+          const colorFrame = colorBufferCtx.getImageData(0, 0, width, height);
+          const maskFrame = maskBufferCtx.getImageData(0, 0, width, height);
           const colorData = colorFrame.data;
           const maskData = maskFrame.data;
 
@@ -100,6 +208,7 @@ if (heroArt && heroFallbackImage && isApplePlatform()) {
         }
 
         hasMaskedPlayback = true;
+        updateMaskBounds();
         resizeCanvas();
         heroArt.classList.remove("is-static");
         heroArt.classList.add("is-masked");
