@@ -2,93 +2,135 @@ const aboutModal = document.getElementById("about-modal");
 const openAboutButton = document.querySelector("[data-open-about]");
 const closeAboutButton = document.querySelector("[data-close-about]");
 const heroArt = document.querySelector(".hero-art");
-const heroVideo = document.querySelector("[data-hero-video]");
-const heroCanvas = document.querySelector("[data-hero-canvas]");
+const heroStackVideo = document.querySelector("[data-hero-stack-video]");
+const heroStackCanvas = document.querySelector("[data-hero-stack-canvas]");
+const heroFallbackImage = document.querySelector("[data-hero-fallback]");
 
-const shouldUseVideoKeying = () => {
+const isApplePlatform = () => {
   const userAgent = navigator.userAgent;
   const isAppleMobile = /iPad|iPhone|iPod/.test(userAgent)
     || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  const isSafari = /Safari/i.test(userAgent) && !/CriOS|FxiOS|EdgiOS/i.test(userAgent);
+  const isAppleDesktop = /Mac/.test(navigator.platform);
 
-  return isAppleMobile && isSafari;
+  return isAppleMobile || isAppleDesktop;
 };
 
-if (heroArt && heroVideo && heroCanvas && shouldUseVideoKeying()) {
-  const ctx = heroCanvas.getContext("2d", { willReadFrequently: true });
+if (heroArt && heroFallbackImage && isApplePlatform()) {
+  const showStaticFallback = () => {
+    heroArt.classList.remove("is-masked");
+    heroArt.classList.add("is-static");
+    heroFallbackImage.hidden = false;
 
-  if (ctx) {
-    let frameId = 0;
-    let hasStarted = false;
+    if (heroStackCanvas) {
+      heroStackCanvas.hidden = true;
+    }
+  };
 
-    const resizeCanvas = () => {
-      const ratio = Math.min(window.devicePixelRatio || 1, 2);
-      const width = Math.max(1, Math.round(heroVideo.clientWidth * ratio));
-      const height = Math.max(1, Math.round(heroVideo.clientHeight * ratio));
+  showStaticFallback();
 
-      if (heroCanvas.width !== width || heroCanvas.height !== height) {
-        heroCanvas.width = width;
-        heroCanvas.height = height;
-      }
-    };
+  if (heroStackVideo && heroStackCanvas) {
+    const ctx = heroStackCanvas.getContext("2d", { willReadFrequently: true });
+    const frameBuffer = document.createElement("canvas");
+    const frameBufferCtx = frameBuffer.getContext("2d", { willReadFrequently: true });
 
-    const renderFrame = () => {
-      if (heroVideo.paused || heroVideo.ended || !heroCanvas.width || !heroCanvas.height) {
-        frameId = requestAnimationFrame(renderFrame);
-        return;
-      }
+    if (ctx && frameBufferCtx) {
+      let stackReady = false;
+      let hasMaskedPlayback = false;
+      let frameId = 0;
 
-      ctx.drawImage(heroVideo, 0, 0, heroCanvas.width, heroCanvas.height);
+      const resizeCanvas = () => {
+        const sourceWidth = heroStackVideo.videoWidth || 1;
+        const sourceHeight = heroStackVideo.videoHeight || 1;
+        const visibleWidth = sourceWidth / 2;
+        const aspectRatio = visibleWidth / sourceHeight;
+        const containerWidth = heroArt.getBoundingClientRect().width || 1;
+        const maxHeight = window.innerWidth <= 720 ? window.innerHeight * 0.32 : window.innerHeight * 0.42;
+        let displayWidth = containerWidth;
+        let displayHeight = displayWidth / aspectRatio;
 
-      const frame = ctx.getImageData(0, 0, heroCanvas.width, heroCanvas.height);
-      const data = frame.data;
-
-      for (let index = 0; index < data.length; index += 4) {
-        const red = data[index];
-        const green = data[index + 1];
-        const blue = data[index + 2];
-        const maxChannel = Math.max(red, green, blue);
-
-        if (maxChannel <= 16) {
-          data[index + 3] = 0;
-          continue;
+        if (displayHeight > maxHeight) {
+          displayHeight = maxHeight;
+          displayWidth = displayHeight * aspectRatio;
         }
 
-        if (maxChannel < 54) {
-          data[index + 3] = Math.round(((maxChannel - 16) / 38) * 255);
+        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+        const width = Math.max(1, Math.round(displayWidth * ratio));
+        const height = Math.max(1, Math.round(displayHeight * ratio));
+
+        if (heroStackCanvas.width !== width || heroStackCanvas.height !== height) {
+          heroStackCanvas.width = width;
+          heroStackCanvas.height = height;
+          frameBuffer.width = width * 2;
+          frameBuffer.height = height;
         }
+
+        heroStackCanvas.style.width = `${displayWidth}px`;
+        heroStackCanvas.style.height = `${displayHeight}px`;
+      };
+
+      const renderMaskedFrame = () => {
+        if (!hasMaskedPlayback) {
+          return;
+        }
+
+        if (!heroStackVideo.paused) {
+          frameBufferCtx.drawImage(heroStackVideo, 0, 0, frameBuffer.width, frameBuffer.height);
+
+          const width = heroStackCanvas.width;
+          const height = heroStackCanvas.height;
+          const colorFrame = frameBufferCtx.getImageData(0, 0, width, height);
+          const maskFrame = frameBufferCtx.getImageData(width, 0, width, height);
+          const colorData = colorFrame.data;
+          const maskData = maskFrame.data;
+
+          for (let index = 0; index < colorData.length; index += 4) {
+            const alpha = Math.round((maskData[index] + maskData[index + 1] + maskData[index + 2]) / 3);
+            colorData[index + 3] = alpha;
+          }
+
+          ctx.putImageData(colorFrame, 0, 0);
+        }
+
+        frameId = requestAnimationFrame(renderMaskedFrame);
+      };
+
+      const startMaskedPlayback = async () => {
+        if (!stackReady || hasMaskedPlayback) {
+          return;
+        }
+
+        hasMaskedPlayback = true;
+        resizeCanvas();
+        heroArt.classList.remove("is-static");
+        heroArt.classList.add("is-masked");
+        heroFallbackImage.hidden = true;
+        heroStackCanvas.hidden = false;
+
+        try {
+          await heroStackVideo.play();
+        } catch (_error) {
+          hasMaskedPlayback = false;
+          showStaticFallback();
+          return;
+        }
+
+        cancelAnimationFrame(frameId);
+        renderMaskedFrame();
+      };
+
+      heroStackVideo.addEventListener("loadeddata", () => {
+        stackReady = true;
+        startMaskedPlayback();
+      });
+
+      heroStackVideo.addEventListener("error", showStaticFallback);
+      window.addEventListener("resize", resizeCanvas);
+
+      if (heroStackVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        stackReady = true;
       }
 
-      ctx.putImageData(frame, 0, 0);
-      frameId = requestAnimationFrame(renderFrame);
-    };
-
-    const startKeyedPlayback = async () => {
-      if (hasStarted) {
-        return;
-      }
-
-      hasStarted = true;
-      heroArt.classList.add("is-keyed");
-      heroCanvas.hidden = false;
-      resizeCanvas();
-
-      try {
-        await heroVideo.play();
-      } catch (_error) {
-        // iOS may defer autoplay until the element is ready; keep the canvas path active.
-      }
-
-      cancelAnimationFrame(frameId);
-      renderFrame();
-    };
-
-    heroVideo.addEventListener("loadedmetadata", startKeyedPlayback, { once: true });
-    heroVideo.addEventListener("loadeddata", startKeyedPlayback, { once: true });
-    window.addEventListener("resize", resizeCanvas);
-
-    if (heroVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-      startKeyedPlayback();
+      startMaskedPlayback();
     }
   }
 }

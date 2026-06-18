@@ -164,7 +164,12 @@ button {
   mix-blend-mode: multiply;
 }
 
-.hero-video-canvas {
+.hero-stack-video {
+  display: none;
+}
+
+.hero-stack-canvas,
+.hero-fallback-image {
   display: none;
   width: 100%;
   max-width: min(44.95rem, 62vh);
@@ -172,11 +177,20 @@ button {
   max-height: 42vh;
 }
 
-.hero-art.is-keyed .hero-video {
+.hero-art.is-static .hero-video {
   display: none;
 }
 
-.hero-art.is-keyed .hero-video-canvas {
+.hero-art.is-masked .hero-video,
+.hero-art.is-masked .hero-fallback-image {
+  display: none;
+}
+
+.hero-art.is-masked .hero-stack-canvas {
+  display: block;
+}
+
+.hero-art.is-static .hero-fallback-image {
   display: block;
 }
 
@@ -330,7 +344,8 @@ button {
     max-height: 32vh;
   }
 
-  .hero-video-canvas {
+  .hero-stack-canvas,
+  .hero-fallback-image {
     max-width: min(100%, 22rem);
     max-height: 32vh;
   }
