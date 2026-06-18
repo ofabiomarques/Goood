@@ -1,23 +1,85 @@
 const aboutModal = document.getElementById("about-modal");
 const openAboutButton = document.querySelector("[data-open-about]");
 const closeAboutButton = document.querySelector("[data-close-about]");
+const preloader = document.querySelector("[data-preloader]");
 const heroArt = document.querySelector(".hero-art");
+const heroVideo = document.querySelector("[data-hero-video]");
 const heroStackVideo = document.querySelector("[data-hero-stack-video]");
 const heroStackCanvas = document.querySelector("[data-hero-stack-canvas]");
 const heroFallbackImage = document.querySelector("[data-hero-fallback]");
 
-const shouldUseAppleVideoWorkaround = () => {
+const shouldUseMaskedVideoWorkaround = () => {
   const userAgent = navigator.userAgent;
   const isAppleMobile = /iPad|iPhone|iPod/.test(userAgent)
     || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const isAppleDesktop = /Mac/.test(navigator.platform);
   const isApplePlatform = isAppleMobile || isAppleDesktop;
   const isSafari = /Safari/i.test(userAgent) && !/Chrome|Chromium|CriOS|Edg|EdgiOS|Firefox|FxiOS/i.test(userAgent);
+  const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent)
+    || window.matchMedia("(pointer: coarse)").matches;
 
-  return isApplePlatform && isSafari;
+  return isMobileDevice || (isApplePlatform && isSafari);
 };
 
-if (heroArt && heroFallbackImage && shouldUseAppleVideoWorkaround()) {
+if (preloader) {
+  const shouldUseMaskedVideo = shouldUseMaskedVideoWorkaround();
+  const activeHeroMedia = shouldUseMaskedVideo ? heroStackVideo : heroVideo;
+  const minimumLoaderTime = 850;
+  const startedAt = performance.now();
+  let pageLoaded = document.readyState === "complete";
+  let mediaReady = !activeHeroMedia;
+  let preloaderDismissed = false;
+
+  const dismissPreloader = () => {
+    if (preloaderDismissed || !pageLoaded || !mediaReady) {
+      return;
+    }
+
+    preloaderDismissed = true;
+    const elapsed = performance.now() - startedAt;
+    const waitTime = Math.max(0, minimumLoaderTime - elapsed);
+
+    window.setTimeout(() => {
+      document.body.classList.remove("is-loading");
+      preloader.classList.add("is-hidden");
+
+      window.setTimeout(() => {
+        preloader.hidden = true;
+      }, 560);
+    }, waitTime);
+  };
+
+  const markMediaReady = () => {
+    mediaReady = true;
+    dismissPreloader();
+  };
+
+  const markPageLoaded = () => {
+    pageLoaded = true;
+    dismissPreloader();
+  };
+
+  if (activeHeroMedia?.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+    mediaReady = true;
+  } else if (activeHeroMedia) {
+    activeHeroMedia.addEventListener("loadeddata", markMediaReady, { once: true });
+    activeHeroMedia.addEventListener("error", markMediaReady, { once: true });
+  }
+
+  if (!pageLoaded) {
+    window.addEventListener("load", markPageLoaded, { once: true });
+  }
+
+  window.setTimeout(() => {
+    mediaReady = true;
+    pageLoaded = true;
+    dismissPreloader();
+  }, 3200);
+
+  dismissPreloader();
+}
+
+if (heroArt && heroFallbackImage && shouldUseMaskedVideoWorkaround()) {
   const showStaticFallback = () => {
     heroArt.classList.remove("is-masked");
     heroArt.classList.add("is-static");

@@ -46,6 +46,10 @@ body {
   font-family: var(--font-body);
 }
 
+body.is-loading {
+  overflow: hidden;
+}
+
 body.modal-open {
   overflow: hidden;
 }
@@ -64,6 +68,81 @@ button {
   padding: clamp(1.25rem, 2.4vw, 2.5rem) clamp(1.5rem, 3vw, 3rem) clamp(1.25rem, 2vw, 2rem);
   display: flex;
   flex-direction: column;
+  transition: opacity 500ms ease, transform 500ms ease;
+}
+
+body.is-loading .page-shell {
+  opacity: 0;
+  transform: translateY(0.6rem);
+  pointer-events: none;
+}
+
+.preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background:
+    radial-gradient(circle at 50% 34%, rgba(115, 163, 111, 0.18), transparent 24%),
+    radial-gradient(circle at 50% 58%, rgba(255, 255, 255, 0.82), transparent 22%),
+    var(--bg);
+  transition: opacity 540ms ease, visibility 540ms ease;
+}
+
+.preloader.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.preloader-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.preloader-orbs {
+  display: flex;
+  align-items: flex-end;
+  gap: clamp(0.12rem, 0.45vw, 0.28rem);
+}
+
+.preloader-orb {
+  width: clamp(2rem, 4.2vw, 3.3rem);
+  aspect-ratio: 100 / 143;
+  background: center / contain no-repeat url("./assets/images/OOO.svg");
+  transform-origin: 50% 100%;
+  animation: preloaderPulse 1.25s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+.preloader-orb:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.preloader-orb:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+@keyframes preloaderPulse {
+  0%,
+  100% {
+    transform: translateY(0) scaleX(1) scaleY(1);
+    opacity: 0.88;
+  }
+
+  30% {
+    transform: translateY(-0.45rem) scaleX(0.98) scaleY(1.04);
+    opacity: 1;
+  }
+
+  55% {
+    transform: translateY(0.2rem) scaleX(1.05) scaleY(0.95);
+    opacity: 0.94;
+  }
 }
 
 .topbar {
@@ -356,6 +435,14 @@ button {
 
   .hero-copy p {
     font-size: clamp(1.3rem, 6vw, 1.8rem);
+  }
+
+  .preloader-inner {
+    gap: 1rem;
+  }
+
+  .preloader-orbs {
+    gap: 0.12rem;
   }
 
   .about-modal-close {
