@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Goood Co.</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="hero-page">
+      <video
+        class="hero-background"
+        src="./assets/video/hero-background.mp4"
+        autoplay
+        loop
+        playsinline
+        preload="auto"
+        aria-hidden="true"
+      ></video>
+
+      <header class="site-header">
+        <a class="brand" href="/" aria-label="Goood Co.">
+          <img
+            class="brand-logo"
+            src="./assets/images/logo-goood-negative.svg"
+            alt="The Goood Co."
+          />
+        </a>
+
+        <div class="header-actions">
+          <nav class="header-pill" aria-label="Navegação principal">
+            <a href="#about">About</a>
+            <a href="#services">Services</a>
+            <a
+              class="icon-link"
+              href="https://www.instagram.com/wearegooodco/"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Instagram"
+            >
+              <img src="./assets/images/icon-instagram.svg" alt="" aria-hidden="true" />
+            </a>
+            <a class="icon-link" href="mailto:hello@gooodco.com" aria-label="Contato">
+              <img src="./assets/images/icon-message.svg" alt="" aria-hidden="true" />
+            </a>
+          </nav>
+
+          <button
+            class="sound-toggle"
+            type="button"
+            aria-pressed="true"
+            aria-label="Desativar som"
+            data-sound-toggle
+          >
+            <span class="sound-toggle-icon" aria-hidden="true">
+              <img class="icon-sound-on" src="./assets/images/icon-volume-on.svg" alt="" />
+              <img class="icon-sound-off" src="./assets/images/icon-volume-off.svg" alt="" />
+            </span>
+          </button>
+        </div>
+      </header>
+
+      <div class="edge-markers" aria-hidden="true">
+        <span></span>
+        <span></span>
+      </div>
+
+      <section class="hero-copy" aria-label="Goood positioning">
+        <p class="hero-copy-kicker">Partner</p>
+        <h1 class="hero-copy-title">Creative, Tech &amp;<br />Experience</h1>
+      </section>
+
+      <div id="about" hidden></div>
+      <div id="services" hidden></div>
+    </main>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
